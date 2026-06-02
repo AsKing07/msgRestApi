@@ -10,8 +10,6 @@ import com.bschool.msgrestapi.exception.ResourceNotFoundException;
 import com.bschool.msgrestapi.repository.NotificationRepository;
 import com.bschool.msgrestapi.repository.UserRepository;
 import com.bschool.msgrestapi.service.NotificationService;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -20,6 +18,8 @@ import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.json.JsonMapper;
 
 import java.time.Instant;
 import java.util.LinkedHashMap;
@@ -36,7 +36,7 @@ public class NotificationServiceImpl implements NotificationService {
     private final JavaMailSender mailSender;
     private final MailProperties mailProperties;
     private final PresenceProperties presenceProperties;
-    private final ObjectMapper objectMapper;
+    private final JsonMapper jsonMapper;
 
     @Override
     @Transactional
@@ -120,8 +120,8 @@ public class NotificationServiceImpl implements NotificationService {
         payload.put("requestedAt", friendRequest.getRequestedAt().toString());
 
         try {
-            return objectMapper.writeValueAsString(payload);
-        } catch (JsonProcessingException ex) {
+            return jsonMapper.writeValueAsString(payload);
+        } catch (JacksonException ex) {
             throw new IllegalStateException("Impossible de sérialiser la notification", ex);
         }
     }
