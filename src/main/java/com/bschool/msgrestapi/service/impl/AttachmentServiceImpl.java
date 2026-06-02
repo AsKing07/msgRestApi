@@ -3,7 +3,6 @@ package com.bschool.msgrestapi.service.impl;
 import com.bschool.msgrestapi.domain.entity.Attachment;
 import com.bschool.msgrestapi.domain.entity.Conversation;
 import com.bschool.msgrestapi.domain.entity.User;
-import com.bschool.msgrestapi.domain.enums.AttachmentStatus;
 import com.bschool.msgrestapi.dto.response.AttachmentDownload;
 import com.bschool.msgrestapi.dto.response.AttachmentResponse;
 import com.bschool.msgrestapi.exception.BusinessException;
@@ -77,7 +76,6 @@ public class AttachmentServiceImpl implements AttachmentService {
                 .storageKey(storageKey)
                 .sizeBytes(file.getSize())
                 .contentType(contentType(file))
-                .status(AttachmentStatus.AVAILABLE)
                 .uploadedAt(now)
                 .deleted(false)
                 .build();
@@ -103,10 +101,9 @@ public class AttachmentServiceImpl implements AttachmentService {
     @Override
     @Transactional(readOnly = true)
     public AttachmentDownload download(Long conversationId, Long attachmentId, Long userId) {
-        Attachment attachment = requireAttachmentInConversation(conversationId, attachmentId);
+        Attachment attachment = requireAvailableAttachment(conversationId, attachmentId);
         User user = requireUser(userId);
         assertParticipant(attachment.getConversation(), user.getId());
-        assertAvailableForTransfer(attachment);
 
         Path root = storageRoot();
         Path target = root.resolve(attachment.getStorageKey()).normalize();
@@ -137,54 +134,14 @@ public class AttachmentServiceImpl implements AttachmentService {
     @Override
     @Transactional
     public void delete(Long conversationId, Long attachmentId, Long userId) {
-        Attachment attachment = requireAttachmentInConversation(conversationId, attachmentId);
+        Attachment attachment = requireAvailableAttachment(conversationId, attachmentId);
         User user = requireUser(userId);
         assertParticipant(attachment.getConversation(), user.getId());
         assertUploader(attachment, user.getId(), "Seul l'expéditeur peut supprimer ce fichier.");
 
-        if (attachment.isDeleted()) {
-            return;
-        }
-
         removePhysicalFile(attachment);
         attachment.setDeleted(true);
-        attachment.setStatus(AttachmentStatus.DELETED);
         attachment.setDeletedAt(Instant.now());
-    }
-
-    @Override
-    @Transactional
-    public AttachmentResponse cancel(Long conversationId, Long attachmentId, Long userId) {
-        Attachment attachment = requireAttachmentInConversation(conversationId, attachmentId);
-        User user = requireUser(userId);
-        assertParticipant(attachment.getConversation(), user.getId());
-        assertUploader(attachment, user.getId(), "Seul l'expéditeur peut annuler ce fichier.");
-        assertAvailableForTransfer(attachment);
-
-        removePhysicalFile(attachment);
-        attachment.setStatus(AttachmentStatus.CANCELLED);
-        attachment.setCancelledAt(Instant.now());
-
-        return AttachmentResponse.from(attachment);
-    }
-
-    @Override
-    @Transactional
-    public AttachmentResponse decline(Long conversationId, Long attachmentId, Long userId) {
-        Attachment attachment = requireAttachmentInConversation(conversationId, attachmentId);
-        User user = requireUser(userId);
-        assertParticipant(attachment.getConversation(), user.getId());
-
-        if (attachment.getUploader().getId().equals(user.getId())) {
-            throw new BusinessException("L'expéditeur ne peut pas décliner son propre fichier.");
-        }
-
-        assertAvailableForTransfer(attachment);
-        removePhysicalFile(attachment);
-        attachment.setStatus(AttachmentStatus.DECLINED);
-        attachment.setDeclinedAt(Instant.now());
-
-        return AttachmentResponse.from(attachment);
     }
 
     private User requireUser(Long userId) {
@@ -197,9 +154,15 @@ public class AttachmentServiceImpl implements AttachmentService {
                 .orElseThrow(() -> new ResourceNotFoundException("Discussion introuvable."));
     }
 
-    private Attachment requireAttachmentInConversation(Long conversationId, Long attachmentId) {
-        return attachmentRepository.findByIdAndConversation_Id(attachmentId, conversationId)
+    private Attachment requireAvailableAttachment(Long conversationId, Long attachmentId) {
+        Attachment attachment = attachmentRepository.findByIdAndConversation_Id(attachmentId, conversationId)
                 .orElseThrow(() -> new ResourceNotFoundException("Fichier introuvable dans cette discussion."));
+
+        if (attachment.isDeleted()) {
+            throw new BusinessException("Ce fichier n'est plus disponible.");
+        }
+
+        return attachment;
     }
 
     private void assertParticipant(Conversation conversation, Long userId) {
@@ -214,12 +177,6 @@ public class AttachmentServiceImpl implements AttachmentService {
     private void assertUploader(Attachment attachment, Long userId, String message) {
         if (!attachment.getUploader().getId().equals(userId)) {
             throw new BusinessException(message);
-        }
-    }
-
-    private void assertAvailableForTransfer(Attachment attachment) {
-        if (attachment.isDeleted() || attachment.getStatus() != AttachmentStatus.AVAILABLE) {
-            throw new BusinessException("Ce fichier n'est plus disponible.");
         }
     }
 

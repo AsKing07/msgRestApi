@@ -36,7 +36,7 @@ public class AttachmentController {
 
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @ResponseStatus(HttpStatus.CREATED)
-    @Operation(summary = "US8 — Envoyer un fichier à un ami")
+    @Operation(summary = "US8 — Envoyer un fichier dans une discussion")
     public AttachmentResponse upload(
             @PathVariable Long conversationId,
             @RequestHeader("X-User-Id") Long userId,
@@ -55,7 +55,7 @@ public class AttachmentController {
     }
 
     @GetMapping("/{attachmentId}/download")
-    @Operation(summary = "US8 — Télécharger un fichier disponible")
+    @Operation(summary = "US8 — Télécharger un fichier partagé")
     public ResponseEntity<Resource> download(
             @PathVariable Long conversationId,
             @PathVariable Long attachmentId,
@@ -81,32 +81,12 @@ public class AttachmentController {
 
     @DeleteMapping("/{attachmentId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    @Operation(summary = "US8 — Supprimer un fichier envoyé")
+    @Operation(summary = "US9 — Supprimer un fichier envoyé")
     public void delete(
             @PathVariable Long conversationId,
             @PathVariable Long attachmentId,
             @RequestHeader("X-User-Id") Long userId
     ) {
         attachmentService.delete(conversationId, attachmentId, userId);
-    }
-
-    @PostMapping("/{attachmentId}/cancel")
-    @Operation(summary = "US8 — Annuler un fichier envoyé")
-    public AttachmentResponse cancel(
-            @PathVariable Long conversationId,
-            @PathVariable Long attachmentId,
-            @RequestHeader("X-User-Id") Long userId
-    ) {
-        return attachmentService.cancel(conversationId, attachmentId, userId);
-    }
-
-    @PostMapping("/{attachmentId}/decline")
-    @Operation(summary = "US8 — Décliner un fichier reçu")
-    public AttachmentResponse decline(
-            @PathVariable Long conversationId,
-            @PathVariable Long attachmentId,
-            @RequestHeader("X-User-Id") Long userId
-    ) {
-        return attachmentService.decline(conversationId, attachmentId, userId);
     }
 }

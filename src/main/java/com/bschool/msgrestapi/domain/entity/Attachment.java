@@ -1,10 +1,7 @@
 package com.bschool.msgrestapi.domain.entity;
 
-import com.bschool.msgrestapi.domain.enums.AttachmentStatus;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -51,16 +48,8 @@ public class Attachment {
 
     private String contentType;
 
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
-    private AttachmentStatus status;
-
     @Column(nullable = false)
     private Instant uploadedAt;
-
-    private Instant cancelledAt;
-
-    private Instant declinedAt;
 
     @Column(nullable = false)
     private boolean deleted;

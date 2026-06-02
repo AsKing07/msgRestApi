@@ -15,8 +15,4 @@ public interface AttachmentService {
     AttachmentDownload download(Long conversationId, Long attachmentId, Long userId);
 
     void delete(Long conversationId, Long attachmentId, Long userId);
-
-    AttachmentResponse cancel(Long conversationId, Long attachmentId, Long userId);
-
-    AttachmentResponse decline(Long conversationId, Long attachmentId, Long userId);
 }
