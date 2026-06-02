@@ -1,9 +1,13 @@
 package com.bschool.msgrestapi.service.impl;
 
+import com.bschool.msgrestapi.domain.entity.User;
 import com.bschool.msgrestapi.exception.BusinessException;
+import com.bschool.msgrestapi.repository.ConversationRepository;
+import com.bschool.msgrestapi.repository.UserRepository;
 import com.bschool.msgrestapi.service.ConversationService;
 import com.bschool.msgrestapi.domain.entity.Conversation;
 import com.bschool.msgrestapi.domain.entity.Message;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -11,9 +15,24 @@ import java.util.List;
 @Service
 public class ConversationServiceImpl implements ConversationService {
 
+    private final ConversationRepository conversationRepository;
+    private final UserRepository userRepository;
+
+    @Autowired
+    public ConversationServiceImpl(
+            ConversationRepository conversationRepository,
+            UserRepository userRepository
+    ) {
+        this.conversationRepository = conversationRepository;
+        this.userRepository = userRepository;
+    }
+
     @Override
-    public List<Conversation> listForUser(Long userId) {
-        throw new BusinessException("À implémenter — US1 (Charbel)");
+    public List<Conversation> listForUser(Long userId){
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new BusinessException("Utilisateur non trouvé" + userId));
+
+        return conversationRepository.findAllByParticipantOrderByLastActivity(user);
     }
 
     @Override
