@@ -26,7 +26,7 @@ public class NotificationController {
     private final UserRepository userRepository;
 
     @GetMapping
-    @Operation(summary = "Lister les notifications de l'utilisateur (polling ou complément WebSocket)")
+    @Operation(summary = "US4 — Lister les notifications (ex. demandes d'ami reçues)")
     public List<Notification> list(@CurrentUserId Long userId) {
         var user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("Utilisateur introuvable"));

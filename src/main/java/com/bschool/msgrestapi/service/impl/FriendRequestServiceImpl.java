@@ -6,6 +6,7 @@ import com.bschool.msgrestapi.exception.BusinessException;
 import com.bschool.msgrestapi.repository.FriendRequestRepository;
 import com.bschool.msgrestapi.repository.UserRepository;
 import com.bschool.msgrestapi.service.FriendRequestService;
+import com.bschool.msgrestapi.service.NotificationService;
 import com.bschool.msgrestapi.domain.entity.FriendRequest;
 import com.bschool.msgrestapi.domain.entity.Friendship;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -19,6 +20,8 @@ public class FriendRequestServiceImpl implements FriendRequestService {
     UserRepository userRepository;
     @Autowired
     FriendRequestRepository friendRequestRepository;
+    @Autowired
+    NotificationService notificationService;
 
     @Override
     public FriendRequest sendRequest(Long senderId, Long receiverId) {
@@ -37,7 +40,9 @@ public class FriendRequestServiceImpl implements FriendRequestService {
             friendRequest.setStatus(FriendRequestStatus.PENDING);
             friendRequest.setRequestedAt(java.time.Instant.now());
 
-            return friendRequestRepository.save(friendRequest);
+            FriendRequest saved = friendRequestRepository.save(friendRequest);
+            notificationService.notifyFriendRequestReceived(saved);
+            return saved;
         }catch (Exception e){
             throw new BusinessException("Erreur lors de l'envoi de la demande d'ami : " + e.getMessage());
         }
