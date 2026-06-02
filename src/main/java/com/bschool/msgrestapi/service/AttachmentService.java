@@ -1,15 +1,22 @@
 package com.bschool.msgrestapi.service;
 
-import com.bschool.msgrestapi.domain.entity.Attachment;
+import com.bschool.msgrestapi.dto.response.AttachmentDownload;
+import com.bschool.msgrestapi.dto.response.AttachmentResponse;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 
 public interface AttachmentService {
 
-    Attachment upload(Long conversationId, Long uploaderId, MultipartFile file);
+    AttachmentResponse upload(Long conversationId, Long uploaderId, MultipartFile file);
 
-    void delete(Long attachmentId, Long userId);
+    List<AttachmentResponse> listByConversation(Long conversationId, Long userId);
 
-    List<Attachment> listByConversation(Long conversationId, Long userId);
+    AttachmentDownload download(Long conversationId, Long attachmentId, Long userId);
+
+    void delete(Long conversationId, Long attachmentId, Long userId);
+
+    AttachmentResponse cancel(Long conversationId, Long attachmentId, Long userId);
+
+    AttachmentResponse decline(Long conversationId, Long attachmentId, Long userId);
 }
