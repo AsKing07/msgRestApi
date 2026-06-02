@@ -61,7 +61,7 @@ public class AttachmentController {
     public ResponseEntity<Resource> download(
             @PathVariable Long conversationId,
             @PathVariable Long attachmentId,
-            @RequestHeader("X-User-Id") Long userId
+            @CurrentUserId Long userId
     ) {
         AttachmentDownload download = attachmentService.download(conversationId, attachmentId, userId);
         ResponseEntity.BodyBuilder response = ResponseEntity.ok()
