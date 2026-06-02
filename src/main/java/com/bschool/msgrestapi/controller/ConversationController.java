@@ -1,9 +1,10 @@
 package com.bschool.msgrestapi.controller;
 
-import com.bschool.msgrestapi.domain.entity.Conversation;
 import com.bschool.msgrestapi.domain.entity.Message;
+import com.bschool.msgrestapi.domain.entity.User;
 import com.bschool.msgrestapi.dto.request.EditMessageRequest;
 import com.bschool.msgrestapi.dto.request.SendMessageRequest;
+import com.bschool.msgrestapi.dto.response.ConversationResponse;
 import com.bschool.msgrestapi.service.ConversationService;
 import com.bschool.msgrestapi.security.CurrentUserId;
 import io.swagger.v3.oas.annotations.Operation;
@@ -35,8 +36,23 @@ public class ConversationController {
 
     @GetMapping
     @Operation(summary = "US1 — Lister les discussions triées par dernière activité")
-    public List<Conversation> listConversations(@CurrentUserId Long userId) {
-        return conversationService.listForUser(userId);
+    public List<ConversationResponse> listConversations(@CurrentUserId Long userId) {
+        return conversationService.listForUser(userId)
+            .stream()
+            .map(c -> {
+                User friend = c.getParticipantLow().getId().equals(userId)
+                        ? c.getParticipantHigh()
+                        : c.getParticipantLow();
+
+                return ConversationResponse.builder()
+                        .id(c.getId())
+                        .friendId(friend.getId())
+                        .friendFirstName(friend.getFirstName())
+                        .friendLastName(friend.getLastName())
+                        .lastActivityAt(c.getLastActivityAt())
+                        .build();
+            })
+            .toList();
     }
 
     @GetMapping("/{conversationId}/messages")
