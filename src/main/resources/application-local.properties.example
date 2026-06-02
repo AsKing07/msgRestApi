@@ -1,0 +1,13 @@
+# Copier ce fichier vers application-local.properties (déjà dans .gitignore)
+# Chaque membre de l'équipe configure sa propre instance MySQL locale.
+
+spring.datasource.url=jdbc:mysql://localhost:3306/msgdb?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Europe/Paris
+spring.datasource.username=root
+spring.datasource.password=votre_mot_de_passe
+
+# Optionnel : secret JWT personnel (min. 32 caractères)
+# app.jwt.secret=votre-secret-local-tres-long-minimum-32-caracteres
+
+# Mail local (MailHog, GreenMail, etc.)
+# spring.mail.host=localhost
+# spring.mail.port=1025

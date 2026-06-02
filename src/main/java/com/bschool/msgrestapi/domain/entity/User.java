@@ -47,4 +47,7 @@ public class User {
     @CreatedDate
     @Column(nullable = false, updatable = false)
     private Instant createdAt;
+
+    /** Dernière activité API — utilisé pour détecter un utilisateur hors ligne (US4). */
+    private Instant lastActiveAt;
 }
