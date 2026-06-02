@@ -50,12 +50,25 @@ public class FriendRequestServiceImpl implements FriendRequestService {
 
     @Override
     public FriendRequest accept(Long requestId, Long receiverId) {
-        throw new BusinessException("À implémenter — US5 + création discussion (Loïc / Charbel)");
+        FriendRequest friendRequest = friendRequestRepository.getOne(requestId);
+        if(!friendRequest.getReceiver().getId().equals(receiverId)){
+            throw new BusinessException("L'utilisateur n'est pas le destinataire de la demande d'ami");
+        }
+        friendRequest.setStatus(FriendRequestStatus.ACCEPTED);
+        friendRequest.setRespondedAt(java.time.Instant.now());
+        return friendRequestRepository.save(friendRequest);
     }
 
     @Override
     public FriendRequest decline(Long requestId, Long receiverId) {
-        throw new BusinessException("À implémenter — US11 (Sabine)");
+        FriendRequest friendRequest = friendRequestRepository.getReferenceById(requestId);
+        if (!friendRequest.getReceiver().getId().equals(receiverId)) {
+            throw new BusinessException("L'utilisateur n'est pas le destinataire de la demande d'ami");
+        }
+        friendRequest.setStatus(FriendRequestStatus.DECLINED);
+        friendRequest.setDeclineAt(java.time.Instant.now());
+        return friendRequestRepository.save(friendRequest);
+        //throw new BusinessException("À implémenter — US11 (Sabine)");
     }
 
     @Override
