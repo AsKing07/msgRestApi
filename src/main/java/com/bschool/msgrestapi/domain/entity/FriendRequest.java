@@ -50,4 +50,5 @@ public class FriendRequest {
     private Instant requestedAt;
 
     private Instant respondedAt;
+    private Instant declineAt;
 }
