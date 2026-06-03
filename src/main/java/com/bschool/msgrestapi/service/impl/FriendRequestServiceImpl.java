@@ -157,7 +157,12 @@ public class FriendRequestServiceImpl implements FriendRequestService {
     @Override
     @Transactional
     public void cancel(Long requestId, Long senderId) {
-        throw new BusinessException("À implémenter — US12 (Dandara)");
+      Optional<FriendRequest> friendRequest = friendRequestRepository.findById(requestId);
+       if (!friendRequest.get().getSender().getId().equals(senderId)) {
+           throw new BusinessException("Vous n'êtes pas l'auteur de la demande");
+       }
+        friendRequest.get().setStatus(FriendRequestStatus.CANCELLED);
+         friendRequestRepository.save(friendRequest.get());
     }
 
     @Override
