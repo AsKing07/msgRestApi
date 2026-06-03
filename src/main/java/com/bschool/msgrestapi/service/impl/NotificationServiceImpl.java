@@ -129,6 +129,18 @@ public class NotificationServiceImpl implements NotificationService {
 
     @Override
     @Transactional
+    public void notifyFileDeleted(Attachment attachment) {
+        User deleter = attachment.getUploader();
+        Conversation conversation = attachment.getConversation();
+        Long recipientId = resolveRecipientId(conversation, deleter.getId());
+
+        String payload = buildFileDeletedPayload(attachment);
+        notifyUser(recipientId, NotificationType.FILE_DELETED, payload);
+        sendEmailIfOffline(recipientId, NotificationType.FILE_DELETED, payload);
+    }
+
+    @Override
+    @Transactional
     public void notifyMessageDeleted(Message message) {
         User deleter = message.getSender();
         Conversation conversation = message.getConversation();
@@ -191,6 +203,26 @@ public class NotificationServiceImpl implements NotificationService {
         payload.put("contentType", attachment.getContentType());
         if (attachment.getUploadedAt() != null) {
             payload.put("uploadedAt", attachment.getUploadedAt().toString());
+        }
+
+        try {
+            return jsonMapper.writeValueAsString(payload);
+        } catch (JacksonException ex) {
+            throw new IllegalStateException("Impossible de sérialiser la notification", ex);
+        }
+    }
+
+    private String buildFileDeletedPayload(Attachment attachment) {
+        User deleter = attachment.getUploader();
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("attachmentId", attachment.getId());
+        payload.put("conversationId", attachment.getConversation().getId());
+        payload.put("deletedById", deleter.getId());
+        payload.put("deletedByFirstName", deleter.getFirstName());
+        payload.put("deletedByLastName", deleter.getLastName());
+        payload.put("originalFileName", attachment.getOriginalFileName());
+        if (attachment.getDeletedAt() != null) {
+            payload.put("deletedAt", attachment.getDeletedAt().toString());
         }
 
         try {
@@ -303,6 +335,7 @@ public class NotificationServiceImpl implements NotificationService {
             case NEW_FILE -> "Nouveau fichier reçu";
             case MESSAGE_DELETED -> "Message supprimé dans une discussion";
             case MESSAGE_EDITED -> "Message modifié dans une discussion";
+            case FILE_DELETED -> "Fichier supprimé dans une discussion";
             default -> "Notification Messagerie";
         };
     }
@@ -364,6 +397,16 @@ public class NotificationServiceImpl implements NotificationService {
 
                     Un message a été modifié dans une de vos discussions.
                     Connectez-vous à l'application pour voir le changement.
+
+                    Détails : %s
+                    """.formatted(payload);
+        }
+        if (type == NotificationType.FILE_DELETED) {
+            return """
+                    Bonjour,
+
+                    Un fichier a été supprimé dans une de vos discussions.
+                    Connectez-vous à l'application pour rester à jour.
 
                     Détails : %s
                     """.formatted(payload);
