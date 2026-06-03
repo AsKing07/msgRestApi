@@ -1,39 +1,32 @@
 package com.bschool.msgrestapi.service.impl;
 
+import com.bschool.msgrestapi.domain.entity.Conversation;
+import com.bschool.msgrestapi.domain.entity.Message;
 import com.bschool.msgrestapi.domain.entity.User;
+import com.bschool.msgrestapi.domain.util.UserPairUtil;
 import com.bschool.msgrestapi.exception.BusinessException;
+import com.bschool.msgrestapi.exception.ResourceNotFoundException;
 import com.bschool.msgrestapi.repository.ConversationRepository;
+import com.bschool.msgrestapi.repository.FriendshipRepository;
 import com.bschool.msgrestapi.repository.MessageRepository;
 import com.bschool.msgrestapi.repository.UserRepository;
 import com.bschool.msgrestapi.service.ConversationService;
-import com.bschool.msgrestapi.domain.entity.Conversation;
-import com.bschool.msgrestapi.domain.entity.Message;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
-
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 
 @Service
+@RequiredArgsConstructor
 public class ConversationServiceImpl implements ConversationService {
 
-    @Autowired
     private final MessageRepository messageRepository;
-
     private final ConversationRepository conversationRepository;
     private final UserRepository userRepository;
-
-    @Autowired
-    public ConversationServiceImpl(
-            MessageRepository messageRepository, ConversationRepository conversationRepository,
-            UserRepository userRepository
-    ) {
-        this.messageRepository = messageRepository;
-        this.conversationRepository = conversationRepository;
-        this.userRepository = userRepository;
-    }
-
+    private final FriendshipRepository friendshipRepository;
     @Override
     public List<Conversation> listForUser(Long userId) {
         User user = userRepository.findById(userId)
@@ -43,13 +36,38 @@ public class ConversationServiceImpl implements ConversationService {
     }
 
     @Override
+    @Transactional
     public Conversation getOrCreateBetweenFriends(Long userId, Long friendId) {
-        throw new BusinessException("À implémenter — US6 (Charbel)");
+        if (userId.equals(friendId)) {
+            throw new BusinessException("Impossible de créer une discussion avec soi-même.");
+        }
+
+        User user = requireUser(userId);
+        User friend = requireUser(friendId);
+        var orderedUsers = UserPairUtil.order(user, friend);
+
+        if (friendshipRepository.findByUserLowAndUserHigh(orderedUsers.low(), orderedUsers.high()).isEmpty()) {
+            throw new BusinessException("Une amitié doit exister avant de créer une discussion.");
+        }
+
+        Instant now = Instant.now();
+        return conversationRepository
+                .findByParticipantLowAndParticipantHigh(orderedUsers.low(), orderedUsers.high())
+                .orElseGet(() -> conversationRepository.save(Conversation.builder()
+                        .participantLow(orderedUsers.low())
+                        .participantHigh(orderedUsers.high())
+                        .createdAt(now)
+                        .lastActivityAt(now)
+                        .build()));
+    }
+
+    private User requireUser(Long userId) {
+        return userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("Utilisateur introuvable."));
     }
 
     @Override
-    public List<Message> listMessages(Long conversationId, Long userId) {
-        throw new BusinessException("À implémenter — Charbel");
+    public List<Message> listMessages(Long conversationId, Long userId) {        throw new BusinessException("À implémenter — Charbel");
     }
 
     @Override
@@ -85,7 +103,6 @@ public class ConversationServiceImpl implements ConversationService {
                     return messageRepository.save(message);
                 }
             }
-           // throw new BusinessException("À implémenter — US6 (Charbel)");
         }
     }
 

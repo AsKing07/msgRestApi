@@ -8,10 +8,10 @@ import com.bschool.msgrestapi.domain.enums.FriendRequestStatus;
 import com.bschool.msgrestapi.domain.util.UserPairUtil;
 import com.bschool.msgrestapi.exception.BusinessException;
 import com.bschool.msgrestapi.exception.ResourceNotFoundException;
-import com.bschool.msgrestapi.repository.ConversationRepository;
 import com.bschool.msgrestapi.repository.FriendRequestRepository;
 import com.bschool.msgrestapi.repository.FriendshipRepository;
 import com.bschool.msgrestapi.repository.UserRepository;
+import com.bschool.msgrestapi.service.ConversationService;
 import com.bschool.msgrestapi.service.FriendRequestService;
 import com.bschool.msgrestapi.service.NotificationService;
 import com.bschool.msgrestapi.dto.response.ReceivedFriendRequestResponse;
@@ -30,7 +30,7 @@ public class FriendRequestServiceImpl implements FriendRequestService {
     private final UserRepository userRepository;
     private final FriendRequestRepository friendRequestRepository;
     private final FriendshipRepository friendshipRepository;
-    private final ConversationRepository conversationRepository;
+    private final ConversationService conversationService;
     private final NotificationService notificationService;
 
     @Override
@@ -113,14 +113,10 @@ public class FriendRequestServiceImpl implements FriendRequestService {
                         .createdAt(now)
                         .build()));
 
-        Conversation conversation = conversationRepository
-                .findByParticipantLowAndParticipantHigh(orderedUsers.low(), orderedUsers.high())
-                .orElseGet(() -> conversationRepository.save(Conversation.builder()
-                        .participantLow(orderedUsers.low())
-                        .participantHigh(orderedUsers.high())
-                        .createdAt(now)
-                        .lastActivityAt(now)
-                        .build()));
+        Conversation conversation = conversationService.getOrCreateBetweenFriends(
+                sender.getId(),
+                receiver.getId()
+        );
 
         friendRequest.setStatus(FriendRequestStatus.ACCEPTED);
         friendRequest.setRespondedAt(now);
