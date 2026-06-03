@@ -2,6 +2,7 @@ package com.bschool.msgrestapi.controller;
 
 import com.bschool.msgrestapi.domain.entity.FriendRequest;
 import com.bschool.msgrestapi.domain.entity.Friendship;
+import com.bschool.msgrestapi.dto.response.ReceivedFriendRequestResponse;
 import com.bschool.msgrestapi.dto.request.SendFriendRequestDto;
 import com.bschool.msgrestapi.service.FriendRequestService;
 import com.bschool.msgrestapi.security.CurrentUserId;
@@ -43,7 +44,7 @@ public class FriendRequestController {
 
     @GetMapping("/requests/received")
     @Operation(summary = "US3 — Lister les demandes reçues (plus récentes en premier)")
-    public List<FriendRequest> listReceived(@CurrentUserId Long userId) {
+    public List<ReceivedFriendRequestResponse> listReceived(@CurrentUserId Long userId) {
         return friendRequestService.listReceivedPending(userId);
     }
 
