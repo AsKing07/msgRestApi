@@ -11,6 +11,7 @@ import com.bschool.msgrestapi.repository.AttachmentRepository;
 import com.bschool.msgrestapi.repository.ConversationRepository;
 import com.bschool.msgrestapi.repository.UserRepository;
 import com.bschool.msgrestapi.service.AttachmentService;
+import com.bschool.msgrestapi.service.NotificationService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.Resource;
@@ -37,6 +38,7 @@ public class AttachmentServiceImpl implements AttachmentService {
     private final AttachmentRepository attachmentRepository;
     private final ConversationRepository conversationRepository;
     private final UserRepository userRepository;
+    private final NotificationService notificationService;
 
     @Value("${app.file.storage-dir:uploads/files}")
     private String storageDirectory;
@@ -81,8 +83,11 @@ public class AttachmentServiceImpl implements AttachmentService {
                 .build();
 
         conversation.setLastActivityAt(now);
+        conversationRepository.save(conversation);
 
-        return AttachmentResponse.from(attachmentRepository.save(attachment));
+        Attachment saved = attachmentRepository.save(attachment);
+        notificationService.notifyNewFile(saved);
+        return AttachmentResponse.from(saved);
     }
 
     @Override

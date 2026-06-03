@@ -2,6 +2,7 @@ package com.bschool.msgrestapi.service.impl;
 
 import com.bschool.msgrestapi.config.MailProperties;
 import com.bschool.msgrestapi.config.PresenceProperties;
+import com.bschool.msgrestapi.domain.entity.Attachment;
 import com.bschool.msgrestapi.domain.entity.Conversation;
 import com.bschool.msgrestapi.domain.entity.FriendRequest;
 import com.bschool.msgrestapi.domain.entity.Message;
@@ -114,6 +115,18 @@ public class NotificationServiceImpl implements NotificationService {
         sendEmailIfOffline(recipientId, NotificationType.NEW_MESSAGE, payload);
     }
 
+    @Override
+    @Transactional
+    public void notifyNewFile(Attachment attachment) {
+        User uploader = attachment.getUploader();
+        Conversation conversation = attachment.getConversation();
+        Long recipientId = resolveRecipientId(conversation, uploader.getId());
+
+        String payload = buildNewFilePayload(attachment);
+        notifyUser(recipientId, NotificationType.NEW_FILE, payload);
+        sendEmailIfOffline(recipientId, NotificationType.NEW_FILE, payload);
+    }
+
     private Long resolveRecipientId(Conversation conversation, Long senderId) {
         if (conversation.getParticipantLow().getId().equals(senderId)) {
             return conversation.getParticipantHigh().getId();
@@ -132,6 +145,28 @@ public class NotificationServiceImpl implements NotificationService {
         payload.put("content", message.getContent());
         if (message.getCreatedAt() != null) {
             payload.put("sentAt", message.getCreatedAt().toString());
+        }
+
+        try {
+            return jsonMapper.writeValueAsString(payload);
+        } catch (JacksonException ex) {
+            throw new IllegalStateException("Impossible de sérialiser la notification", ex);
+        }
+    }
+
+    private String buildNewFilePayload(Attachment attachment) {
+        User uploader = attachment.getUploader();
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("attachmentId", attachment.getId());
+        payload.put("conversationId", attachment.getConversation().getId());
+        payload.put("uploaderId", uploader.getId());
+        payload.put("uploaderFirstName", uploader.getFirstName());
+        payload.put("uploaderLastName", uploader.getLastName());
+        payload.put("originalFileName", attachment.getOriginalFileName());
+        payload.put("sizeBytes", attachment.getSizeBytes());
+        payload.put("contentType", attachment.getContentType());
+        if (attachment.getUploadedAt() != null) {
+            payload.put("uploadedAt", attachment.getUploadedAt().toString());
         }
 
         try {
@@ -199,6 +234,7 @@ public class NotificationServiceImpl implements NotificationService {
             case FRIEND_REQUEST_RECEIVED -> "Nouvelle demande d'ami";
             case FRIEND_REQUEST_ACCEPTED -> "Demande d'ami acceptée";
             case NEW_MESSAGE -> "Nouveau message";
+            case NEW_FILE -> "Nouveau fichier reçu";
             default -> "Notification Messagerie";
         };
     }
@@ -230,6 +266,16 @@ public class NotificationServiceImpl implements NotificationService {
 
                     Vous avez reçu un nouveau message.
                     Connectez-vous à l'application pour le lire.
+
+                    Détails : %s
+                    """.formatted(payload);
+        }
+        if (type == NotificationType.NEW_FILE) {
+            return """
+                    Bonjour,
+
+                    Vous avez reçu un nouveau fichier dans une discussion.
+                    Connectez-vous à l'application pour le consulter.
 
                     Détails : %s
                     """.formatted(payload);
