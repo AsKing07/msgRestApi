@@ -14,12 +14,14 @@ import com.bschool.msgrestapi.repository.FriendshipRepository;
 import com.bschool.msgrestapi.repository.UserRepository;
 import com.bschool.msgrestapi.service.FriendRequestService;
 import com.bschool.msgrestapi.service.NotificationService;
+import com.bschool.msgrestapi.dto.response.ReceivedFriendRequestResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -40,9 +42,26 @@ public class FriendRequestServiceImpl implements FriendRequestService {
 
         User sender = requireUser(senderId);
         User receiver = requireUser(receiverId);
+        var orderedUsers = UserPairUtil.order(sender, receiver);
 
-        if (friendRequestRepository.findBySenderIdAndReceiverId(senderId, receiverId) != null) {
-            throw new BusinessException("Une demande d'ami existe déjà entre ces deux utilisateurs.");
+        if (friendshipRepository.findByUserLowAndUserHigh(orderedUsers.low(), orderedUsers.high()).isPresent()) {
+            throw new BusinessException("Vous êtes déjà amis avec cet utilisateur.");
+        }
+
+        Optional<FriendRequest> existingPending = friendRequestRepository.findPendingBetweenUsers(
+                senderId,
+                receiverId,
+                FriendRequestStatus.PENDING
+        );
+
+        if (existingPending.isPresent()) {
+            FriendRequest existing = existingPending.get();
+            if (existing.getSender().getId().equals(senderId)) {
+                throw new BusinessException("Vous avez déjà envoyé une demande d'ami à cet utilisateur.");
+            }
+            throw new BusinessException(
+                    "Cet utilisateur vous a déjà envoyé une demande d'ami. Acceptez-la pour devenir amis."
+            );
         }
 
         FriendRequest friendRequest = FriendRequest.builder()
@@ -59,8 +78,13 @@ public class FriendRequestServiceImpl implements FriendRequestService {
 
     @Override
     @Transactional(readOnly = true)
-    public List<FriendRequest> listReceivedPending(Long receiverId) {
-        throw new BusinessException("À implémenter — US3 (Sabine)");
+    public List<ReceivedFriendRequestResponse> listReceivedPending(Long receiverId) {
+        User receiver = requireUser(receiverId);
+        return friendRequestRepository
+                .findReceivedPendingWithSender(receiver, FriendRequestStatus.PENDING)
+                .stream()
+                .map(ReceivedFriendRequestResponse::from)
+                .toList();
     }
 
     @Override
@@ -102,8 +126,21 @@ public class FriendRequestServiceImpl implements FriendRequestService {
         friendRequest.setRespondedAt(now);
         FriendRequest saved = friendRequestRepository.save(friendRequest);
 
+        cancelReversePendingRequest(sender.getId(), receiver.getId(), saved.getId());
+
         notificationService.notifyFriendRequestAccepted(saved, conversation.getId());
         return saved;
+    }
+
+    /** Annule une éventuelle demande réciproque encore en attente (ex. B→A quand on accepte A→B). */
+    private void cancelReversePendingRequest(Long senderId, Long receiverId, Long acceptedRequestId) {
+        friendRequestRepository.findPendingBetweenUsers(senderId, receiverId, FriendRequestStatus.PENDING)
+                .filter(fr -> !fr.getId().equals(acceptedRequestId))
+                .ifPresent(reverse -> {
+                    reverse.setStatus(FriendRequestStatus.CANCELLED);
+                    reverse.setRespondedAt(Instant.now());
+                    friendRequestRepository.save(reverse);
+                });
     }
 
     @Override
