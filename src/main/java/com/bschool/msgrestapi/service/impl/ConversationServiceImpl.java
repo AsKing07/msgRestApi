@@ -108,7 +108,32 @@ public class ConversationServiceImpl implements ConversationService {
 
     @Override
     public Message editMessage(Long messageId, Long userId, String content) {
-        throw new BusinessException("À implémenter — US10 (Ivan)");
+        if (content == null || content.trim().isEmpty()) {
+            throw new BusinessException("Le contenu du message ne peut pas être vide.");
+        } else if (content.length() > 500) {
+            throw new BusinessException("Le contenu du message ne peut pas dépasser 500 caractères.");
+        } else {
+            Optional<Message> message = messageRepository.findById(messageId);
+
+            if (message.get().getContent().equals(content)){
+                throw new BusinessException("Le contenu du message est le meme. Veuiller le modifier !");
+            } else {
+                message.get().setOldContent(message.get().getContent());
+                message.get().setContent(content);
+                message.get().setUpdatedAt(java.time.Instant.now());
+                message.get().setEdited(true);
+
+
+                Optional<Conversation> conv = conversationRepository.findById(message.get().getConversation().getId());
+                conv.get().setLastActivityAt(java.time.Instant.now());
+
+                //MISE A JOUR DE LA CONVERSATION AVEC LA DERNIERE ACTIVITE
+                conversationRepository.save(conv.get());
+
+                //ENREGISTREMENT DU MESSAGE
+                return messageRepository.save(message.get());
+            }
+        }
     }
 
     @Override
