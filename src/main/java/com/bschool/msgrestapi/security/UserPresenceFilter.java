@@ -6,13 +6,11 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
-import org.springframework.stereotype.Component;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 
-@Component
 @RequiredArgsConstructor
 public class UserPresenceFilter extends OncePerRequestFilter {
 
@@ -24,15 +22,12 @@ public class UserPresenceFilter extends OncePerRequestFilter {
             HttpServletResponse response,
             FilterChain filterChain
     ) throws ServletException, IOException {
-        var authentication = org.springframework.security.core.context.SecurityContextHolder
+        Authentication authentication = org.springframework.security.core.context.SecurityContextHolder
                 .getContext()
                 .getAuthentication();
 
-        if (authentication instanceof JwtAuthenticationToken jwtAuth) {
-            Number userId = jwtAuth.getToken().getClaim("userId");
-            if (userId != null) {
-                userPresenceService.markActive(userId.longValue());
-            }
+        if (authentication != null && authentication.getPrincipal() instanceof CustomUserDetails user) {
+            userPresenceService.markActive(user.getId());
         }
 
         filterChain.doFilter(request, response);
