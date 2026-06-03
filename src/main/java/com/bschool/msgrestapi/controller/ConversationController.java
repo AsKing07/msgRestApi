@@ -87,10 +87,10 @@ public class ConversationController {
     @DeleteMapping("/messages/{messageId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @Operation(summary = "US13 — Supprimer un message")
-    public void deleteMessage(
+    public Message deleteMessage(
             @PathVariable Long messageId,
             @CurrentUserId Long userId
     ) {
-        conversationService.deleteMessage(messageId, userId);
+        return  conversationService.deleteMessage(messageId, userId);
     }
 }
