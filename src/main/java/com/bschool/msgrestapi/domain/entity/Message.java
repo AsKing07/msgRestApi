@@ -46,6 +46,9 @@ public class Message {
     @Column(length = 500)
     private String content;
 
+    @Column(length = 500)
+    private String OldContent;
+
     @CreatedDate
     @Column(nullable = false, updatable = false)
     private Instant createdAt;
