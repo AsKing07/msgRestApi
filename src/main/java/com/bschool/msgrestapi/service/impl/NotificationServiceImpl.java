@@ -90,6 +90,16 @@ public class NotificationServiceImpl implements NotificationService {
         sendEmailIfOffline(receiverId, NotificationType.FRIEND_REQUEST_RECEIVED, payload);
     }
 
+    @Override
+    @Transactional
+    public void notifyFriendRequestAccepted(FriendRequest friendRequest, Long conversationId) {
+        String payload = buildFriendRequestAcceptedPayload(friendRequest, conversationId);
+        Long senderId = friendRequest.getSender().getId();
+
+        notifyUser(senderId, NotificationType.FRIEND_REQUEST_ACCEPTED, payload);
+        sendEmailIfOffline(senderId, NotificationType.FRIEND_REQUEST_ACCEPTED, payload);
+    }
+
     private boolean isUserOnline(User user) {
         if (user.getLastActiveAt() == null) {
             return false;
@@ -126,9 +136,27 @@ public class NotificationServiceImpl implements NotificationService {
         }
     }
 
+    private String buildFriendRequestAcceptedPayload(FriendRequest friendRequest, Long conversationId) {
+        User accepter = friendRequest.getReceiver();
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("friendRequestId", friendRequest.getId());
+        payload.put("accepterId", accepter.getId());
+        payload.put("accepterFirstName", accepter.getFirstName());
+        payload.put("accepterLastName", accepter.getLastName());
+        payload.put("conversationId", conversationId);
+        payload.put("acceptedAt", friendRequest.getRespondedAt().toString());
+
+        try {
+            return jsonMapper.writeValueAsString(payload);
+        } catch (JacksonException ex) {
+            throw new IllegalStateException("Impossible de sérialiser la notification", ex);
+        }
+    }
+
     private String buildEmailSubject(NotificationType type) {
         return switch (type) {
             case FRIEND_REQUEST_RECEIVED -> "Nouvelle demande d'ami";
+            case FRIEND_REQUEST_ACCEPTED -> "Demande d'ami acceptée";
             default -> "Notification Messagerie";
         };
     }
@@ -140,6 +168,16 @@ public class NotificationServiceImpl implements NotificationService {
 
                     Vous avez reçu une nouvelle demande d'ami.
                     Connectez-vous à l'application pour y répondre.
+
+                    Détails : %s
+                    """.formatted(payload);
+        }
+        if (type == NotificationType.FRIEND_REQUEST_ACCEPTED) {
+            return """
+                    Bonjour,
+
+                    Votre demande d'ami a été acceptée.
+                    Vous pouvez maintenant discuter avec cette personne.
 
                     Détails : %s
                     """.formatted(payload);

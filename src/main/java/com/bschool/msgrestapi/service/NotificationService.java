@@ -11,4 +11,6 @@ public interface NotificationService {
     void sendEmailIfOffline(Long recipientId, NotificationType type, String payload);
 
     void notifyFriendRequestReceived(FriendRequest friendRequest);
+
+    void notifyFriendRequestAccepted(FriendRequest friendRequest, Long conversationId);
 }
