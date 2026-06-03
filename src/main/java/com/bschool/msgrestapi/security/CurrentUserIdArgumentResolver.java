@@ -2,7 +2,7 @@ package com.bschool.msgrestapi.security;
 
 import com.bschool.msgrestapi.exception.UnauthorizedException;
 import org.springframework.core.MethodParameter;
-import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
+import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Component;
 import org.springframework.web.bind.support.WebDataBinderFactory;
 import org.springframework.web.context.request.NativeWebRequest;
@@ -25,15 +25,12 @@ public class CurrentUserIdArgumentResolver implements HandlerMethodArgumentResol
             NativeWebRequest webRequest,
             WebDataBinderFactory binderFactory
     ) {
-        var authentication = org.springframework.security.core.context.SecurityContextHolder
+        Authentication authentication = org.springframework.security.core.context.SecurityContextHolder
                 .getContext()
                 .getAuthentication();
 
-        if (authentication instanceof JwtAuthenticationToken jwtAuth) {
-            Number userId = jwtAuth.getToken().getClaim("userId");
-            if (userId != null) {
-                return userId.longValue();
-            }
+        if (authentication != null && authentication.getPrincipal() instanceof CustomUserDetails user) {
+            return user.getId();
         }
 
         throw new UnauthorizedException("Utilisateur non authentifié");
