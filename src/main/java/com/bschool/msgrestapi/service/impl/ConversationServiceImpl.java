@@ -1,5 +1,6 @@
 package com.bschool.msgrestapi.service.impl;
 
+import com.bschool.msgrestapi.config.AppProperties;
 import com.bschool.msgrestapi.domain.entity.Conversation;
 import com.bschool.msgrestapi.domain.entity.Message;
 import com.bschool.msgrestapi.domain.entity.User;
@@ -11,13 +12,13 @@ import com.bschool.msgrestapi.repository.FriendshipRepository;
 import com.bschool.msgrestapi.repository.MessageRepository;
 import com.bschool.msgrestapi.repository.UserRepository;
 import com.bschool.msgrestapi.service.ConversationService;
+import com.bschool.msgrestapi.service.NotificationService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.List;
-import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -27,11 +28,13 @@ public class ConversationServiceImpl implements ConversationService {
     private final ConversationRepository conversationRepository;
     private final UserRepository userRepository;
     private final FriendshipRepository friendshipRepository;
-    @Override
-    public List<Conversation> listForUser(Long userId) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new BusinessException("Utilisateur non trouvé" + userId));
+    private final AppProperties appProperties;
+    private final NotificationService notificationService;
 
+    @Override
+    @Transactional(readOnly = true)
+    public List<Conversation> listForUser(Long userId) {
+        User user = requireUser(userId);
         return conversationRepository.findAllByParticipantOrderByLastActivity(user);
     }
 
@@ -61,49 +64,67 @@ public class ConversationServiceImpl implements ConversationService {
                         .build()));
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public List<Message> listMessages(Long conversationId, Long userId) {
+        throw new BusinessException("À implémenter — Charbel");
+    }
+
+    @Override
+    @Transactional
+    public Message sendMessage(Long conversationId, Long senderId, String content) {
+        validateMessageContent(content);
+
+        Conversation conversation = requireConversation(conversationId);
+        assertParticipant(conversation, senderId);
+
+        User sender = requireUser(senderId);
+        Instant now = Instant.now();
+
+        conversation.setLastActivityAt(now);
+        conversationRepository.save(conversation);
+
+        Message message = Message.builder()
+                .conversation(conversation)
+                .sender(sender)
+                .content(content)
+                .edited(false)
+                .deleted(false)
+                .build();
+
+        Message saved = messageRepository.save(message);
+        notificationService.notifyNewMessage(saved);
+        return saved;
+    }
+
+    private void validateMessageContent(String content) {
+        if (content == null || content.trim().isEmpty()) {
+            throw new BusinessException("Le contenu du message ne peut pas être vide.");
+        }
+        if (content.length() > appProperties.maxLength()) {
+            throw new BusinessException(
+                    "Le contenu du message ne peut pas dépasser %d caractères.".formatted(appProperties.maxLength())
+            );
+        }
+    }
+
+    private Conversation requireConversation(Long conversationId) {
+        return conversationRepository.findById(conversationId)
+                .orElseThrow(() -> new ResourceNotFoundException("Conversation introuvable."));
+    }
+
+    private void assertParticipant(Conversation conversation, Long userId) {
+        boolean isParticipant = conversation.getParticipantLow().getId().equals(userId)
+                || conversation.getParticipantHigh().getId().equals(userId);
+
+        if (!isParticipant) {
+            throw new BusinessException("Vous ne participez pas à cette discussion.");
+        }
+    }
+
     private User requireUser(Long userId) {
         return userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("Utilisateur introuvable."));
-    }
-
-    @Override
-    public List<Message> listMessages(Long conversationId, Long userId) {        throw new BusinessException("À implémenter — Charbel");
-    }
-
-    @Override
-    public Message sendMessage(Long conversationId, Long senderId, String content) {
-        if (content == null || content.trim().isEmpty()) {
-            throw new BusinessException("Le contenu du message ne peut pas être vide.");
-        } else if (content.length() > 500) {
-            throw new BusinessException("Le contenu du message ne peut pas dépasser 500 caractères.");
-        } else {
-            Optional<Conversation> conversation = conversationRepository.findById(conversationId);
-
-            if(conversation.isEmpty()) {
-                throw new BusinessException("Conversation non trouvée : " + conversationId);
-            }else{
-                Conversation conv = conversation.get();
-                if (!conv.getParticipantLow().getId().equals(senderId) && !conv.getParticipantHigh().getId().equals(senderId)) {
-                    throw new BusinessException("L'utilisateur n'est pas participant de la conversation : " + conversationId);
-                }else {
-                    Message message = new Message();
-                    message.setConversation(conv);
-                    Optional<User> sender = userRepository.findById(senderId);
-                    message.setSender(sender.get());
-                    message.setContent(content);
-                    message.setCreatedAt(java.time.Instant.now());
-                    message.setEdited(false);
-                    message.setDeleted(false);
-                    conv.setLastActivityAt(java.time.Instant.now());
-
-                    //MISE A JOUR DE LA CONVERSATION AVEC LA DERNIERE ACTIVITE
-                    conversationRepository.save(conv);
-
-                    //ENREGISTREMENT DU MESSAGE
-                    return messageRepository.save(message);
-                }
-            }
-        }
     }
 
     @Override

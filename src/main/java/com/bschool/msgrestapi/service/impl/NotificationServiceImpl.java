@@ -2,7 +2,9 @@ package com.bschool.msgrestapi.service.impl;
 
 import com.bschool.msgrestapi.config.MailProperties;
 import com.bschool.msgrestapi.config.PresenceProperties;
+import com.bschool.msgrestapi.domain.entity.Conversation;
 import com.bschool.msgrestapi.domain.entity.FriendRequest;
+import com.bschool.msgrestapi.domain.entity.Message;
 import com.bschool.msgrestapi.domain.entity.Notification;
 import com.bschool.msgrestapi.domain.entity.User;
 import com.bschool.msgrestapi.domain.enums.NotificationType;
@@ -100,6 +102,45 @@ public class NotificationServiceImpl implements NotificationService {
         sendEmailIfOffline(senderId, NotificationType.FRIEND_REQUEST_ACCEPTED, payload);
     }
 
+    @Override
+    @Transactional
+    public void notifyNewMessage(Message message) {
+        User sender = message.getSender();
+        Conversation conversation = message.getConversation();
+        Long recipientId = resolveRecipientId(conversation, sender.getId());
+
+        String payload = buildNewMessagePayload(message);
+        notifyUser(recipientId, NotificationType.NEW_MESSAGE, payload);
+        sendEmailIfOffline(recipientId, NotificationType.NEW_MESSAGE, payload);
+    }
+
+    private Long resolveRecipientId(Conversation conversation, Long senderId) {
+        if (conversation.getParticipantLow().getId().equals(senderId)) {
+            return conversation.getParticipantHigh().getId();
+        }
+        return conversation.getParticipantLow().getId();
+    }
+
+    private String buildNewMessagePayload(Message message) {
+        User sender = message.getSender();
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("messageId", message.getId());
+        payload.put("conversationId", message.getConversation().getId());
+        payload.put("senderId", sender.getId());
+        payload.put("senderFirstName", sender.getFirstName());
+        payload.put("senderLastName", sender.getLastName());
+        payload.put("content", message.getContent());
+        if (message.getCreatedAt() != null) {
+            payload.put("sentAt", message.getCreatedAt().toString());
+        }
+
+        try {
+            return jsonMapper.writeValueAsString(payload);
+        } catch (JacksonException ex) {
+            throw new IllegalStateException("Impossible de sérialiser la notification", ex);
+        }
+    }
+
     private boolean isUserOnline(User user) {
         if (user.getLastActiveAt() == null) {
             return false;
@@ -157,6 +198,7 @@ public class NotificationServiceImpl implements NotificationService {
         return switch (type) {
             case FRIEND_REQUEST_RECEIVED -> "Nouvelle demande d'ami";
             case FRIEND_REQUEST_ACCEPTED -> "Demande d'ami acceptée";
+            case NEW_MESSAGE -> "Nouveau message";
             default -> "Notification Messagerie";
         };
     }
@@ -178,6 +220,16 @@ public class NotificationServiceImpl implements NotificationService {
 
                     Votre demande d'ami a été acceptée.
                     Vous pouvez maintenant discuter avec cette personne.
+
+                    Détails : %s
+                    """.formatted(payload);
+        }
+        if (type == NotificationType.NEW_MESSAGE) {
+            return """
+                    Bonjour,
+
+                    Vous avez reçu un nouveau message.
+                    Connectez-vous à l'application pour le lire.
 
                     Détails : %s
                     """.formatted(payload);
