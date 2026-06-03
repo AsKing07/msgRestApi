@@ -129,6 +129,7 @@ public class ConversationServiceImpl implements ConversationService {
     }
 
     @Override
+    @Transactional
     public Message editMessage(Long messageId, Long userId, String content) {
         if (content == null || content.trim().isEmpty()) {
             throw new BusinessException("Le contenu du message ne peut pas être vide.");
@@ -153,7 +154,9 @@ public class ConversationServiceImpl implements ConversationService {
                 conversationRepository.save(conv.get());
 
                 //ENREGISTREMENT DU MESSAGE
-                return messageRepository.save(message.get());
+                Message saved = messageRepository.save(message.get());
+                notificationService.notifyMessageEdited(saved);
+                return saved;
             }
         }
     }
