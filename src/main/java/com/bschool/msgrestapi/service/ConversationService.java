@@ -17,5 +17,5 @@ public interface ConversationService {
 
     Message editMessage(Long messageId, Long userId, String content);
 
-    void deleteMessage(Long messageId, Long userId);
+    Message deleteMessage(Long messageId, Long userId);
 }

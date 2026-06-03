@@ -158,7 +158,15 @@ public class ConversationServiceImpl implements ConversationService {
     }
 
     @Override
-    public void deleteMessage(Long messageId, Long userId) {
-        throw new BusinessException("À implémenter — US13 (Ivan)");
+    public Message deleteMessage(Long messageId, Long userId) {
+        Optional<Message> message = messageRepository.findById(messageId);
+        Message sms = message.get();
+        Long idSender = sms.getSender().getId();
+        if (!idSender.equals(userId)){
+            throw new BusinessException("VOUS N'AVEZ PAS DE DROIT DE SUPPRESSION");
+        }
+        sms.setDeletedAt(java.time.Instant.now());
+        sms.setDeleted(true);
+        return messageRepository.save(sms);
     }
 }
