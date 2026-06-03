@@ -19,4 +19,6 @@ public interface NotificationService {
     void notifyNewMessage(Message message);
 
     void notifyNewFile(Attachment attachment);
+
+    void notifyMessageDeleted(Message message);
 }
