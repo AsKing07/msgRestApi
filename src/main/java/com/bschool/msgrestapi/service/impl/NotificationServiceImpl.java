@@ -139,6 +139,18 @@ public class NotificationServiceImpl implements NotificationService {
         sendEmailIfOffline(recipientId, NotificationType.MESSAGE_DELETED, payload);
     }
 
+    @Override
+    @Transactional
+    public void notifyMessageEdited(Message message) {
+        User editor = message.getSender();
+        Conversation conversation = message.getConversation();
+        Long recipientId = resolveRecipientId(conversation, editor.getId());
+
+        String payload = buildMessageEditedPayload(message);
+        notifyUser(recipientId, NotificationType.MESSAGE_EDITED, payload);
+        sendEmailIfOffline(recipientId, NotificationType.MESSAGE_EDITED, payload);
+    }
+
     private Long resolveRecipientId(Conversation conversation, Long senderId) {
         if (conversation.getParticipantLow().getId().equals(senderId)) {
             return conversation.getParticipantHigh().getId();
@@ -198,6 +210,29 @@ public class NotificationServiceImpl implements NotificationService {
         payload.put("deletedByLastName", deleter.getLastName());
         if (message.getDeletedAt() != null) {
             payload.put("deletedAt", message.getDeletedAt().toString());
+        }
+
+        try {
+            return jsonMapper.writeValueAsString(payload);
+        } catch (JacksonException ex) {
+            throw new IllegalStateException("Impossible de sérialiser la notification", ex);
+        }
+    }
+
+    private String buildMessageEditedPayload(Message message) {
+        User editor = message.getSender();
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("messageId", message.getId());
+        payload.put("conversationId", message.getConversation().getId());
+        payload.put("editorId", editor.getId());
+        payload.put("editorFirstName", editor.getFirstName());
+        payload.put("editorLastName", editor.getLastName());
+        payload.put("content", message.getContent());
+        if (message.getOldContent() != null) {
+            payload.put("oldContent", message.getOldContent());
+        }
+        if (message.getUpdatedAt() != null) {
+            payload.put("editedAt", message.getUpdatedAt().toString());
         }
 
         try {
@@ -267,6 +302,7 @@ public class NotificationServiceImpl implements NotificationService {
             case NEW_MESSAGE -> "Nouveau message";
             case NEW_FILE -> "Nouveau fichier reçu";
             case MESSAGE_DELETED -> "Message supprimé dans une discussion";
+            case MESSAGE_EDITED -> "Message modifié dans une discussion";
             default -> "Notification Messagerie";
         };
     }
@@ -318,6 +354,16 @@ public class NotificationServiceImpl implements NotificationService {
 
                     Un message a été supprimé dans une de vos discussions.
                     Connectez-vous à l'application pour rester à jour.
+
+                    Détails : %s
+                    """.formatted(payload);
+        }
+        if (type == NotificationType.MESSAGE_EDITED) {
+            return """
+                    Bonjour,
+
+                    Un message a été modifié dans une de vos discussions.
+                    Connectez-vous à l'application pour voir le changement.
 
                     Détails : %s
                     """.formatted(payload);
