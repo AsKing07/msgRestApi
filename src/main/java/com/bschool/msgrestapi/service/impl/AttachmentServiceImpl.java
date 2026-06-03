@@ -147,6 +147,8 @@ public class AttachmentServiceImpl implements AttachmentService {
         removePhysicalFile(attachment);
         attachment.setDeleted(true);
         attachment.setDeletedAt(Instant.now());
+        Attachment saved = attachmentRepository.save(attachment);
+        notificationService.notifyFileDeleted(saved);
     }
 
     private User requireUser(Long userId) {
