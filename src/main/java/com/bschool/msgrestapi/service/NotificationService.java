@@ -1,5 +1,6 @@
 package com.bschool.msgrestapi.service;
 
+import com.bschool.msgrestapi.domain.entity.Attachment;
 import com.bschool.msgrestapi.domain.entity.FriendRequest;
 import com.bschool.msgrestapi.domain.entity.Message;
 import com.bschool.msgrestapi.domain.entity.Notification;
@@ -16,4 +17,6 @@ public interface NotificationService {
     void notifyFriendRequestAccepted(FriendRequest friendRequest, Long conversationId);
 
     void notifyNewMessage(Message message);
+
+    void notifyNewFile(Attachment attachment);
 }
