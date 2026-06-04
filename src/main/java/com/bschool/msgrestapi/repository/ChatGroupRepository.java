@@ -11,9 +11,10 @@ import java.util.List;
 public interface ChatGroupRepository extends JpaRepository<ChatGroup, Long> {
 
     @Query("""
-            SELECT DISTINCT groupMember.group FROM ChatGroupMember groupMember
+            SELECT DISTINCT g FROM ChatGroupMember groupMember
+            JOIN groupMember.group g
             WHERE groupMember.user = :user
-            ORDER BY groupMember.group.createdAt DESC
+            ORDER BY COALESCE(g.lastActivityAt, g.createdAt) DESC
             """)
-    List<ChatGroup> findAllByMemberOrderByCreatedAtDesc(@Param("user") User user);
+    List<ChatGroup> findAllByMemberOrderByLastActivityDesc(@Param("user") User user);
 }
