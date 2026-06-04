@@ -3,6 +3,8 @@ package com.bschool.msgrestapi.service.impl;
 import com.bschool.msgrestapi.domain.entity.Attachment;
 import com.bschool.msgrestapi.domain.entity.Conversation;
 import com.bschool.msgrestapi.domain.entity.User;
+import com.bschool.msgrestapi.domain.enums.AuditAction;
+import com.bschool.msgrestapi.domain.enums.AuditResourceType;
 import com.bschool.msgrestapi.dto.response.AttachmentDownload;
 import com.bschool.msgrestapi.dto.response.AttachmentResponse;
 import com.bschool.msgrestapi.exception.BusinessException;
@@ -11,6 +13,7 @@ import com.bschool.msgrestapi.repository.AttachmentRepository;
 import com.bschool.msgrestapi.repository.ConversationRepository;
 import com.bschool.msgrestapi.repository.UserRepository;
 import com.bschool.msgrestapi.service.AttachmentService;
+import com.bschool.msgrestapi.service.AuditService;
 import com.bschool.msgrestapi.service.NotificationService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
@@ -39,6 +42,7 @@ public class AttachmentServiceImpl implements AttachmentService {
     private final ConversationRepository conversationRepository;
     private final UserRepository userRepository;
     private final NotificationService notificationService;
+    private final AuditService auditService;
 
     @Value("${app.file.storage-dir:uploads/files}")
     private String storageDirectory;
@@ -87,6 +91,13 @@ public class AttachmentServiceImpl implements AttachmentService {
 
         Attachment saved = attachmentRepository.save(attachment);
         notificationService.notifyNewFile(saved);
+        auditService.log(
+                uploaderId,
+                AuditResourceType.FILE,
+                AuditAction.SENT,
+                saved.getId(),
+                saved.getOriginalFileName()
+        );
         return AttachmentResponse.from(saved);
     }
 
