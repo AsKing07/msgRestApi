@@ -4,6 +4,8 @@ import com.bschool.msgrestapi.config.AppProperties;
 import com.bschool.msgrestapi.domain.entity.Conversation;
 import com.bschool.msgrestapi.domain.entity.Message;
 import com.bschool.msgrestapi.domain.entity.User;
+import com.bschool.msgrestapi.domain.enums.AuditAction;
+import com.bschool.msgrestapi.domain.enums.AuditResourceType;
 import com.bschool.msgrestapi.domain.util.UserPairUtil;
 import com.bschool.msgrestapi.exception.BusinessException;
 import com.bschool.msgrestapi.exception.ResourceNotFoundException;
@@ -11,6 +13,7 @@ import com.bschool.msgrestapi.repository.ConversationRepository;
 import com.bschool.msgrestapi.repository.FriendshipRepository;
 import com.bschool.msgrestapi.repository.MessageRepository;
 import com.bschool.msgrestapi.repository.UserRepository;
+import com.bschool.msgrestapi.service.AuditService;
 import com.bschool.msgrestapi.service.ConversationService;
 import com.bschool.msgrestapi.service.NotificationService;
 import lombok.RequiredArgsConstructor;
@@ -31,6 +34,7 @@ public class ConversationServiceImpl implements ConversationService {
     private final FriendshipRepository friendshipRepository;
     private final AppProperties appProperties;
     private final NotificationService notificationService;
+    private final AuditService auditService;
 
     @Override
     @Transactional(readOnly = true)
@@ -95,6 +99,13 @@ public class ConversationServiceImpl implements ConversationService {
 
         Message saved = messageRepository.save(message);
         notificationService.notifyNewMessage(saved);
+        auditService.log(
+                senderId,
+                AuditResourceType.MESSAGE,
+                AuditAction.SENT,
+                saved.getId(),
+                saved.getContent()
+        );
         return saved;
     }
 
@@ -156,6 +167,13 @@ public class ConversationServiceImpl implements ConversationService {
                 //ENREGISTREMENT DU MESSAGE
                 Message saved = messageRepository.save(message.get());
                 notificationService.notifyMessageEdited(saved);
+                auditService.log(
+                        userId,
+                        AuditResourceType.MESSAGE,
+                        AuditAction.EDITED,
+                        saved.getId(),
+                        saved.getContent()
+                );
                 return saved;
             }
         }
@@ -181,6 +199,13 @@ public class ConversationServiceImpl implements ConversationService {
         sms.setDeleted(true);
         Message saved = messageRepository.save(sms);
         notificationService.notifyMessageDeleted(saved);
+        auditService.log(
+                userId,
+                AuditResourceType.MESSAGE,
+                AuditAction.DELETED,
+                saved.getId(),
+                saved.getContent()
+        );
         return saved;
     }
 }
