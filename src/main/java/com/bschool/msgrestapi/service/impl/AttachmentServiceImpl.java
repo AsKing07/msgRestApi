@@ -16,9 +16,8 @@ import com.bschool.msgrestapi.service.AttachmentService;
 import com.bschool.msgrestapi.service.AuditService;
 import com.bschool.msgrestapi.service.NotificationService;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.io.ByteArrayResource;
 import org.springframework.core.io.Resource;
-import org.springframework.core.io.UrlResource;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -26,10 +25,6 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
-import java.net.MalformedURLException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
@@ -44,9 +39,6 @@ public class AttachmentServiceImpl implements AttachmentService {
     private final NotificationService notificationService;
     private final AuditService auditService;
 
-    @Value("${app.file.storage-dir:uploads/files}")
-    private String storageDirectory;
-
     @Override
     @Transactional
     public AttachmentResponse upload(Long conversationId, Long uploaderId, MultipartFile file) {
@@ -60,26 +52,14 @@ public class AttachmentServiceImpl implements AttachmentService {
 
         Instant now = Instant.now();
         String originalFileName = cleanOriginalFileName(file);
-        String storageKey = conversationId + "/" + UUID.randomUUID();
-        Path root = storageRoot();
-        Path target = root.resolve(storageKey).normalize();
-
-        if (!target.startsWith(root)) {
-            throw new BusinessException("Chemin de stockage invalide.");
-        }
-
-        try {
-            Files.createDirectories(target.getParent());
-            Files.copy(file.getInputStream(), target);
-        } catch (IOException ex) {
-            throw new BusinessException("Impossible d'enregistrer le fichier.");
-        }
+        byte[] data = readFileData(file);
 
         Attachment attachment = Attachment.builder()
                 .conversation(conversation)
                 .uploader(uploader)
                 .originalFileName(originalFileName)
-                .storageKey(storageKey)
+                .storageKey(UUID.randomUUID().toString())
+                .data(data)
                 .sizeBytes(file.getSize())
                 .contentType(contentType(file))
                 .uploadedAt(now)
@@ -121,23 +101,11 @@ public class AttachmentServiceImpl implements AttachmentService {
         User user = requireUser(userId);
         assertParticipant(attachment.getConversation(), user.getId());
 
-        Path root = storageRoot();
-        Path target = root.resolve(attachment.getStorageKey()).normalize();
-
-        if (!target.startsWith(root)) {
-            throw new BusinessException("Chemin de stockage invalide.");
+        byte[] data = attachment.getData();
+        if (data == null || data.length == 0) {
+            throw new ResourceNotFoundException("Contenu du fichier introuvable en base.");
         }
-
-        Resource resource;
-        try {
-            resource = new UrlResource(target.toUri());
-        } catch (MalformedURLException ex) {
-            throw new BusinessException("Chemin de fichier invalide.");
-        }
-
-        if (!resource.exists() || !resource.isReadable()) {
-            throw new ResourceNotFoundException("Fichier physique introuvable.");
-        }
+        Resource resource = new ByteArrayResource(data);
 
         return new AttachmentDownload(
                 attachment.getOriginalFileName(),
@@ -155,7 +123,7 @@ public class AttachmentServiceImpl implements AttachmentService {
         assertParticipant(attachment.getConversation(), user.getId());
         assertUploader(attachment, user.getId(), "Seul l'expéditeur peut supprimer ce fichier.");
 
-        removePhysicalFile(attachment);
+        attachment.setData(null);
         attachment.setDeleted(true);
         attachment.setDeletedAt(Instant.now());
         Attachment saved = attachmentRepository.save(attachment);
@@ -222,28 +190,11 @@ public class AttachmentServiceImpl implements AttachmentService {
                 : MediaType.APPLICATION_OCTET_STREAM_VALUE;
     }
 
-    private Path storageRoot() {
+    private byte[] readFileData(MultipartFile file) {
         try {
-            Path root = Paths.get(storageDirectory).toAbsolutePath().normalize();
-            Files.createDirectories(root);
-            return root;
+            return file.getBytes();
         } catch (IOException ex) {
-            throw new BusinessException("Impossible de préparer le dossier de stockage des fichiers.");
-        }
-    }
-
-    private void removePhysicalFile(Attachment attachment) {
-        Path root = storageRoot();
-        Path target = root.resolve(attachment.getStorageKey()).normalize();
-
-        if (!target.startsWith(root)) {
-            throw new BusinessException("Chemin de stockage invalide.");
-        }
-
-        try {
-            Files.deleteIfExists(target);
-        } catch (IOException ex) {
-            throw new BusinessException("Impossible de supprimer le fichier physique.");
+            throw new BusinessException("Impossible de lire le fichier.");
         }
     }
 }
