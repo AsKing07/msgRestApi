@@ -72,7 +72,9 @@ public class ConversationServiceImpl implements ConversationService {
     @Override
     @Transactional(readOnly = true)
     public List<Message> listMessages(Long conversationId, Long userId) {
-        throw new BusinessException("À implémenter — Charbel");
+        Conversation conversation = requireConversation(conversationId);
+        assertParticipant(conversation, userId);
+        return messageRepository.findByConversationAndDeletedFalseOrderByCreatedAtAsc(conversation);
     }
 
     @Override

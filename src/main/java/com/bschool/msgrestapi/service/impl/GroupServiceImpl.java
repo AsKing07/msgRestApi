@@ -17,6 +17,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
@@ -45,9 +46,11 @@ public class GroupServiceImpl implements GroupService {
             throw new BusinessException("Un groupe ne peut pas dépasser 5 personnes.");
         }
 
+        Instant now = Instant.now();
         ChatGroup group = chatGroupRepository.save(ChatGroup.builder()
                 .name(normalizeGroupName(name))
                 .owner(owner)
+                .lastActivityAt(now)
                 .build());
 
         chatGroupMemberRepository.save(ChatGroupMember.builder()
@@ -71,7 +74,7 @@ public class GroupServiceImpl implements GroupService {
     @Transactional(readOnly = true)
     public List<GroupResponse> listMyGroups(Long userId) {
         User user = requireUser(userId);
-        return chatGroupRepository.findAllByMemberOrderByCreatedAtDesc(user)
+        return chatGroupRepository.findAllByMemberOrderByLastActivityDesc(user)
                 .stream()
                 .map(this::toResponse)
                 .toList();
