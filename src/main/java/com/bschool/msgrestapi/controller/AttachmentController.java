@@ -38,7 +38,10 @@ public class AttachmentController {
 
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @ResponseStatus(HttpStatus.CREATED)
-    @Operation(summary = "US8 — Envoyer un fichier dans une discussion")
+    @Operation(
+            summary = "US8 — Envoyer un fichier dans une discussion",
+            description = "Tous les types de fichiers sont acceptés. Seule la taille multipart est limitée par la configuration Spring."
+    )
     public AttachmentResponse upload(
             @PathVariable Long conversationId,
             @CurrentUserId Long userId,

@@ -88,6 +88,33 @@ class AttachmentServiceImplTest {
     }
 
     @Test
+    void uploadAllowsNonImageFiles() {
+        User uploader = user(1L);
+        User friend = user(2L);
+        Conversation conversation = conversation(10L, uploader, friend);
+        byte[] content = new byte[]{0x50, 0x4b, 0x03, 0x04, 0x00};
+        MockMultipartFile file = new MockMultipartFile("file", "archive.zip", "application/zip", content);
+
+        when(userRepository.findById(1L)).thenReturn(Optional.of(uploader));
+        when(conversationRepository.findById(10L)).thenReturn(Optional.of(conversation));
+        when(conversationRepository.save(conversation)).thenReturn(conversation);
+        when(attachmentRepository.save(any(Attachment.class))).thenAnswer(invocation -> {
+            Attachment attachment = invocation.getArgument(0);
+            attachment.setId(101L);
+            return attachment;
+        });
+
+        AttachmentResponse response = attachmentService.upload(10L, 1L, file);
+
+        assertThat(response.id()).isEqualTo(101L);
+        assertThat(response.originalFileName()).isEqualTo("archive.zip");
+        assertThat(response.contentType()).isEqualTo("application/zip");
+        ArgumentCaptor<Attachment> attachmentCaptor = ArgumentCaptor.forClass(Attachment.class);
+        verify(attachmentRepository).save(attachmentCaptor.capture());
+        assertThat(attachmentCaptor.getValue().getData()).isEqualTo(content);
+    }
+
+    @Test
     void downloadReadsFileContentFromDatabaseBlob() throws Exception {
         User uploader = user(1L);
         User friend = user(2L);

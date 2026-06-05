@@ -41,7 +41,7 @@ public class Notification {
     @Column(nullable = false)
     private NotificationType type;
 
-    @Column(nullable = false)
+    @Column(nullable = false, columnDefinition = "TEXT")
     private String payload;
 
     @Column(nullable = false)
