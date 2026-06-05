@@ -150,7 +150,9 @@ public class ConversationServiceImpl implements ConversationService {
             throw new BusinessException("Le contenu du message ne peut pas dépasser 500 caractères.");
         } else {
             Optional<Message> message = messageRepository.findById(messageId);
-
+            if(message.get().getSender().getId().equals(userId)){
+                throw new BusinessException("VOUS N'AVEZ PAS LE DROIT D'EDITION");
+            }
             if (message.get().getContent().equals(content)){
                 throw new BusinessException("Le contenu du message est le meme. Veuiller le modifier !");
             } else {
